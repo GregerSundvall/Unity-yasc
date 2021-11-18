@@ -24,6 +24,13 @@ public class LinkedList<T>
     {
         return tail.content;
     }
+
+    public void Clear()
+    {
+        head = null;
+        tail = null;
+        Count = 0;
+    }
     
     public T GetByIndex(int index)
     {

@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.UIElements;
+using Button = UnityEngine.UI.Button;
 using Color = System.Drawing.Color;
 using Random = UnityEngine.Random;
 
@@ -12,16 +14,17 @@ public class Game : MonoBehaviour
 
     private int width = 31;
     private int height = 31;
-    private float moveDelay = 0.4f;
+    private float startMoveDelay = 0.4f;
+    private float currentMoveDelay;
     private float moveDelayMultiplier = 0.999f;
     private float minMoveDelay = 0.1f;
     private float appleDelay = 2f;
     private Vector3 startPos = Vector3.zero;
     private int startSize = 5;
-    private int score = 0;
-    private int highScore = 10;
-    private bool gameOver = false;
-    private bool justAte = false;
+    private int score;
+    private int highScore;
+    private bool gameOver;
+    private bool justAte;
 
     public Sprite squareSprite;
     public Sprite circleSprite;
@@ -32,6 +35,7 @@ public class Game : MonoBehaviour
     public TextMeshProUGUI scoreBox;
     public TextMeshProUGUI highScoreBox;
     public List<TextMeshProUGUI> gameOverUIText;
+    public Button playAgainButton;
 
     private Vector3 north = new Vector3(0, 1, 0);
     private Vector3 south = new Vector3(0, -1, 0);
@@ -39,9 +43,9 @@ public class Game : MonoBehaviour
     private Vector3 east = new Vector3(1, 0, 0);
     private Vector3 currentDirection;
 
-    private LinkedList<Vector3> snake = new LinkedList<Vector3>();
-    private Dictionary<Vector3, GameObject> tiles = new Dictionary<Vector3, GameObject>();
-    private List<Vector3> apples = new List<Vector3>();
+    private LinkedList<Vector3> snake;
+    private Dictionary<Vector3, GameObject> tiles;
+    private List<Vector3> apples;
 
 
     private void Awake()
@@ -49,15 +53,10 @@ public class Game : MonoBehaviour
         board = Instantiate(boardPrefab);
         board.transform.localScale = new Vector3(width, height, 0);
         board.transform.position = new Vector3(-0.5f, -0.5f, 0);
-
-        currentDirection = north;
         
-        GetHighScore();
-    }
-
-    void Start()
-    {
-        highScoreBox.text = highScore.ToString();
+        snake = new LinkedList<Vector3>();
+        tiles = new Dictionary<Vector3, GameObject>();
+        apples = new List<Vector3>();
         
         for (int i = 0; i < width; i++)
         {
@@ -66,10 +65,28 @@ public class Game : MonoBehaviour
                 var tile = Instantiate(tilePrefab);
                 var position = new Vector3(i - width / 2, j - height / 2, 0);
                 tile.transform.position = position;
+                tile.GetComponent<SpriteRenderer>().enabled = false;
                 tiles.Add(position, tile);
             }
         }
-        
+
+        GetHighScore();
+        highScoreBox.text = highScore.ToString();
+    }
+
+    void Start()
+    {
+        currentDirection = north;
+        currentMoveDelay = startMoveDelay;
+        score = 0;
+        gameOver = false;
+        justAte = false;
+
+        foreach (var tile in tiles)
+        {
+            tile.Value.GetComponent<SpriteRenderer>().enabled = false;
+        }
+
         snake.AddNewHead(startPos);
         tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
         for (int i = 1; i < startSize; i++)
@@ -77,6 +94,12 @@ public class Game : MonoBehaviour
             snake.AddToEnd(startPos + south * i);
             tiles[snake.Tail()].GetComponent<SpriteRenderer>().enabled = true;
 
+        }
+        
+        playAgainButton.gameObject.SetActive(false);
+        foreach (var item in gameOverUIText)
+        {
+            item.gameObject.SetActive(false);
         }
 
         StartCoroutine(Mover());
@@ -87,32 +110,28 @@ public class Game : MonoBehaviour
     void Update()
     {
         GetDirection();
-        // if (gameOver)
-        // {
-        //     foreach (var item in gameOverUIText)
-        //     {
-        //         item.enabled = true;
-        //     }
-        //     StopAllCoroutines();
-        //     
-        //     
-        // }
     }
 
     void GameOver()
     {
-        StopAllCoroutines();
         gameOver = true;
+        
+        StopAllCoroutines();
+        
+        playAgainButton.gameObject.SetActive(true);
         foreach (var item in gameOverUIText)
         {
-            item.enabled = true;
+            item.gameObject.SetActive(true);
         }
     }
 
-    // private void OnDestroy()
-    // {
-    //     SaveHighScore();
-    // }
+    public void RestartGame()
+    {
+        snake.Clear();
+        apples.Clear();
+        Start();
+    }
+    
 
     void GetHighScore()
     {
@@ -169,7 +188,6 @@ public class Game : MonoBehaviour
             {
                 tiles[snake.Tail()].GetComponent<SpriteRenderer>().enabled = false;
             }
-            
             snake.RemoveTail();
         }
         else
@@ -180,12 +198,12 @@ public class Game : MonoBehaviour
 
     void CheckBounds(Vector3 position)
     {
-        if (!gameOver)
+        if (position.x > width / 2 -1 || 
+            position.x < -width / 2 || 
+            position.y > height / 2 -1 ||
+            position.y < -height / 2)
         {
-            gameOver = position.x > width / 2 -1 || 
-                       position.x < -width / 2 || 
-                       position.y > height / 2 -1 ||
-                       position.y < -height / 2;
+            GameOver();
         }
     }
 
@@ -197,9 +215,7 @@ public class Game : MonoBehaviour
             {
                 if (position.Equals(snake.GetByIndex(i)))
                 {
-                    gameOver = true;
                     GameOver();
-                    Debug.Log(gameOver);
                 }
             }
         }
@@ -263,7 +279,7 @@ public class Game : MonoBehaviour
 
     private IEnumerator AppleSpawner()
     {
-        while (true)
+        while (!gameOver)
         {
             SpawnApple();
             yield return new WaitForSeconds(appleDelay);
@@ -275,11 +291,11 @@ public class Game : MonoBehaviour
         while (!gameOver)
         {
             Move();
-            if (moveDelay > minMoveDelay)
+            if (currentMoveDelay > minMoveDelay)
             {
-                moveDelay *= moveDelayMultiplier;
+                currentMoveDelay *= moveDelayMultiplier;
             }
-            yield return new WaitForSeconds(moveDelay);
+            yield return new WaitForSeconds(currentMoveDelay);
         }
         yield break;
     }
