@@ -28,18 +28,26 @@ public class LinkedList<T>
     public T GetByIndex(int index)
     {
         current = head;
-        for (int i = 0; i < index; i++)
+        for (int i = 0; i < index -1; i++)
         {
             current = current.next;
         }
         return current.content;
     }
 
-    public void AddToStart(T item)
+    public void AddNewHead(T item)
     {
         var newNode = new ListNode<T> {content = item};
-        newNode.next = head;
-        head = newNode;
+        if (Count == 0)
+        {
+            head = newNode;
+            tail = newNode;
+        }
+        else
+        {
+            newNode.next = head;
+            head = newNode;
+        }
         Count++;
     }
     
@@ -60,33 +68,34 @@ public class LinkedList<T>
         Count++;
     }
 
-    public void RemoveLast()
+    public void RemoveTail()
     {
-        if (Count == 0)
+        switch (Count)
         {
-            Debug.Log("Cannot remove, list is empty.");
-            return;
+            case 0:
+                Debug.Log("Cannot remove, list is empty.");
+                break;
+            case 1:
+                head = null;
+                tail = null;
+                Count = 0;
+                break;
+            case >1:
+                current = head;
+                for (int i = 0; i < Count; i++)
+                {
+                    if (i == Count -2)
+                    {
+                        tail = current;
+                        current.next = null;
+                    }
+                    else
+                    {
+                        current = current.next;
+                    }
+                }
+                Count--;
+                break;
         }
-        
-
-        if (Count == 1)
-        {
-            head = null;
-            tail = null;
-            Count = 0;
-            return;
-        }
-        
-        current = head;
-        for (int i = 0; i < Count; i++)
-        {
-            if (i == Count -2)
-            {
-                current.next = null;
-                return;
-            }
-            current = current.next;
-        }
-        Count--;
     }
 }
