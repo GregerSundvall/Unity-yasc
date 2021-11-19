@@ -73,7 +73,7 @@ public class Game : MonoBehaviour
         justAte = false;
 
         LoadLevelFromResources();
-        CreateWalls();
+        if (walls != null) { CreateWalls(); }
         CreateSnake();
         InactivateGameOverUIObjects();
         
@@ -176,6 +176,7 @@ public class Game : MonoBehaviour
     {
         var path = "level1";
         TextAsset textAsset = Resources.Load<TextAsset>(path);
+        if (textAsset == null) { return; }
         level = (Level)JsonUtility.FromJson(textAsset.text, typeof(Level));
     }
     
