@@ -1,12 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Tilemaps;
-using UnityEngine.UIElements;
 using Button = UnityEngine.UI.Button;
-using Color = System.Drawing.Color;
 using Random = UnityEngine.Random;
 
 public class Game : MonoBehaviour
@@ -28,6 +26,7 @@ public class Game : MonoBehaviour
 
     public Sprite squareSprite;
     public Sprite circleSprite;
+    public Sprite wallSprite;
     public GameObject boardPrefab;
     public GameObject tilePrefab;
     private GameObject board;
@@ -46,8 +45,9 @@ public class Game : MonoBehaviour
     private LinkedList<Vector3> snake;
     private Dictionary<Vector3, GameObject> tiles;
     private List<Vector3> apples;
-
-
+    private List<Vector3> walls;
+    private Level level;
+    
     private void Awake()
     {
         board = Instantiate(boardPrefab);
@@ -57,7 +57,51 @@ public class Game : MonoBehaviour
         snake = new LinkedList<Vector3>();
         tiles = new Dictionary<Vector3, GameObject>();
         apples = new List<Vector3>();
+        walls = new List<Vector3>();
         
+        CreateTiles();
+        GetHighScore();
+        highScoreBox.text = highScore.ToString();
+    }
+
+
+
+    void Start()
+    {
+        currentDirection = north;
+        currentMoveDelay = startMoveDelay;
+        score = 0;
+        gameOver = false;
+        justAte = false;
+
+        GetLevel();
+        CreateWalls();
+
+        snake.AddNewHead(startPos);
+        tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
+        for (int i = 1; i < startSize; i++)
+        {
+            snake.AddToEnd(startPos + south * i);
+            tiles[snake.Tail()].GetComponent<SpriteRenderer>().enabled = true;
+        }
+        
+        playAgainButton.gameObject.SetActive(false);
+        foreach (var item in gameOverUIText)
+        {
+            item.gameObject.SetActive(false);
+        }
+        StartCoroutine(Mover());
+        StartCoroutine(AppleSpawner());
+    }
+
+    
+    void Update()
+    {
+        GetDirection();
+    }
+
+    void CreateTiles()
+    {
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
@@ -69,49 +113,30 @@ public class Game : MonoBehaviour
                 tiles.Add(position, tile);
             }
         }
-
-        GetHighScore();
-        highScoreBox.text = highScore.ToString();
     }
 
-    void Start()
+    void CreateWalls()
     {
-        currentDirection = north;
-        currentMoveDelay = startMoveDelay;
-        score = 0;
-        gameOver = false;
-        justAte = false;
-
-        foreach (var tile in tiles)
-        {
-            tile.Value.GetComponent<SpriteRenderer>().enabled = false;
-        }
-
-        snake.AddNewHead(startPos);
-        tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
-        for (int i = 1; i < startSize; i++)
-        {
-            snake.AddToEnd(startPos + south * i);
-            tiles[snake.Tail()].GetComponent<SpriteRenderer>().enabled = true;
-
-        }
+        var currentNrInLevelMap = 0;
         
-        playAgainButton.gameObject.SetActive(false);
-        foreach (var item in gameOverUIText)
+        for (int i = 0; i < width; i++)
         {
-            item.gameObject.SetActive(false);
+            for (int j = 0; j < height; j++)
+            {
+                if (level.map[currentNrInLevelMap] == 1)
+                {
+                    var position = new Vector3(i - width / 2, j - height / 2, 0);
+                    tiles[position].transform.localScale = new Vector3(1, 1, 0);
+                    var spriteRenderer = tiles[position].GetComponent<SpriteRenderer>();
+                    spriteRenderer.enabled = true;
+                    spriteRenderer.sprite = wallSprite;
+                    walls.Add(position);
+                }
+                currentNrInLevelMap++;
+            }
         }
-
-        StartCoroutine(Mover());
-        StartCoroutine(AppleSpawner());
     }
-
     
-    void Update()
-    {
-        GetDirection();
-    }
-
     void GameOver()
     {
         gameOver = true;
@@ -129,9 +154,37 @@ public class Game : MonoBehaviour
     {
         snake.Clear();
         apples.Clear();
+        walls.Clear();
+        
+        foreach (var tile in tiles)
+        {
+            tile.Value.transform.localScale = new Vector3(0.9f, 0.9f, 0f);
+            tile.Value.GetComponent<SpriteRenderer>().enabled = false;
+        }
+        
         Start();
     }
+
+    void GetLevel()
+    {
+        var path = "level1";
+        TextAsset textAsset = Resources.Load<TextAsset>(path);
+        Debug.Log(textAsset.text.Length);
+        
+        level = (Level)JsonUtility.FromJson(textAsset.text, typeof(Level));
+        Debug.Log(level.map[0]);
+    }
     
+    [Serializable]
+    public class Level
+    {
+        public List<int> map;
+
+        public static Level CreateFromJson(string json)
+        {
+            return JsonUtility.FromJson<Level>(json);
+        }
+    }
 
     void GetHighScore()
     {
@@ -172,12 +225,14 @@ public class Game : MonoBehaviour
 
     void Move()
     {
-        CheckForCrash(snake.Head() + currentDirection);
-        CheckBounds(snake.Head() + currentDirection);
-        CheckForApple(snake.Head() + currentDirection);
+        var goingToPosition = snake.Head() + currentDirection;
+        CheckCrashWithSelf(goingToPosition);
+        CheckOutOfBounds(goingToPosition);
+        CheckCrashWithWall(goingToPosition);
+        CheckForApple(goingToPosition);
         if (gameOver) {return;}
         
-        snake.AddNewHead(snake.Head() + currentDirection);
+        snake.AddNewHead(goingToPosition);
         
         tiles[snake.Head()].GetComponent<SpriteRenderer>().sprite = squareSprite;
         tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
@@ -196,7 +251,7 @@ public class Game : MonoBehaviour
         }
     }
 
-    void CheckBounds(Vector3 position)
+    void CheckOutOfBounds(Vector3 position)
     {
         if (position.x > width / 2 -1 || 
             position.x < -width / 2 || 
@@ -207,7 +262,21 @@ public class Game : MonoBehaviour
         }
     }
 
-    void CheckForCrash(Vector3 position)
+    void CheckCrashWithWall(Vector3 position)
+    {
+        if (!gameOver)
+        {
+            foreach (var wallPosition in walls)
+            {
+                if (wallPosition.Equals(position))
+                {
+                    GameOver();
+                }
+            }
+        }
+    }
+
+    void CheckCrashWithSelf(Vector3 position)
     {
         if (!gameOver)
         {
@@ -248,33 +317,41 @@ public class Game : MonoBehaviour
 
     private void SpawnApple()
     {
-        Vector3 pos = new Vector3(0,0,0);
+        Vector3 position = new Vector3(0,0,0);
         var crash = true;
         while (crash)
         {
             crash = false;
-            pos = new Vector3(Random.Range(-width/2, width/2 -1), Random.Range(-height/2, height/2 -1), 0);
+            position = new Vector3(Random.Range(-width/2, width/2 -1), Random.Range(-height/2, height/2 -1), 0);
             for (int i = 0; i < snake.Count; i++)
             {
-                if (pos == snake.GetByIndex(i))
+                if (position == snake.GetByIndex(i))
                 {
                     crash = true;
                     break;
                 }
             }
 
-            foreach (var t in apples)
+            foreach (var applePos in apples)
             {
-                if (pos == t)
+                if (position == applePos)
+                {
+                    crash = true;
+                    break;
+                }
+            }
+            foreach (var wallPosition in walls)
+            {
+                if (position == wallPosition)
                 {
                     crash = true;
                     break;
                 }
             }
         }
-        apples.Add(pos);
-        tiles[pos].GetComponent<SpriteRenderer>().sprite = circleSprite;
-        tiles[pos].GetComponent<SpriteRenderer>().enabled = true;
+        apples.Add(position);
+        tiles[position].GetComponent<SpriteRenderer>().sprite = circleSprite;
+        tiles[position].GetComponent<SpriteRenderer>().enabled = true;
     }
 
     private IEnumerator AppleSpawner()
