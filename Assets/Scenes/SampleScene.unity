@@ -707,9 +707,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80ff983d2612e344586d84aaea851c67, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  squareSprite: {fileID: -5177388603050735206, guid: cc35afd292fc349128b36a291fb3a165, type: 3}
-  circleSprite: {fileID: -2413806693520163455, guid: 4adeaf2d2b1c7417e89f026626d8264f, type: 3}
-  wallSprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+  startMoveDelay: 0.35
+  moveDelayMultiplier: 0.998
+  minMoveDelay: 0.1
+  appleDelay: 2
+  startSize: 5
+  wrapOnEdges: 1
+  snakeSprite: {fileID: -5177388603050735206, guid: cc35afd292fc349128b36a291fb3a165, type: 3}
+  appleSprite: {fileID: -2413806693520163455, guid: 4adeaf2d2b1c7417e89f026626d8264f, type: 3}
+  wallSprite: {fileID: 7482667652216324306, guid: db750325989564987a34393247d883b4, type: 3}
   boardPrefab: {fileID: 5416505874595391342, guid: 69895cb96a50e3e429785626d53670b8, type: 3}
   tilePrefab: {fileID: 535839672029522546, guid: f15987e3aedd52d4fbd68b0ac3a80d4e, type: 3}
   scoreBox: {fileID: 1567061717}

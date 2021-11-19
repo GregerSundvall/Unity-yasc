@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using Button = UnityEngine.UI.Button;
 using Random = UnityEngine.Random;
@@ -10,20 +11,21 @@ public class Game : MonoBehaviour
 
     private int width = 31;
     private int height = 31;
-    private float startMoveDelay = 0.35f;
+    [SerializeField] private float startMoveDelay = 0.35f;
     private float currentMoveDelay;
-    private float moveDelayMultiplier = 0.998f;
-    private float minMoveDelay = 0.1f;
-    private float appleDelay = 2f;
+    [SerializeField] private float moveDelayMultiplier = 0.998f;
+    [SerializeField] private float minMoveDelay = 0.1f;
+    [SerializeField] private float appleDelay = 2f;
     private Vector3 startPos = Vector3.zero;
-    private int startSize = 5;
+    [SerializeField] private int snakeStartSize = 5;
     private int score;
     private int highScore;
     private bool gameOver;
     private bool justAte;
+    [SerializeField] private bool wrapOnEdges = true;
 
-    public Sprite squareSprite;
-    public Sprite circleSprite;
+    public Sprite snakeSprite;
+    public Sprite appleSprite;
     public Sprite wallSprite;
     public GameObject boardPrefab;
     public GameObject tilePrefab;
@@ -99,7 +101,7 @@ public class Game : MonoBehaviour
     {
         snake.AddNewHead(startPos);
         tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
-        for (int i = 1; i < startSize; i++)
+        for (int i = 1; i < snakeStartSize; i++)
         {
             snake.AddToEnd(startPos + south * i);
             tiles[snake.Tail()].GetComponent<SpriteRenderer>().enabled = true;
@@ -220,14 +222,21 @@ public class Game : MonoBehaviour
     {
         var nextPosition = snake.Head() + currentDirection;
         CheckCrashWithSelf(nextPosition);
-        CheckIfOutOfBounds(nextPosition);
+        if (wrapOnEdges)
+        {
+            nextPosition = GetScreenWrapPosition(nextPosition);
+        }
+        else
+        {
+            CheckIfOutOfBounds(nextPosition);
+        }
         CheckCrashWithWall(nextPosition);
         CheckForApple(nextPosition);
         if (gameOver) {return;}
         
         snake.AddNewHead(nextPosition);
         
-        tiles[snake.Head()].GetComponent<SpriteRenderer>().sprite = squareSprite;
+        tiles[snake.Head()].GetComponent<SpriteRenderer>().sprite = snakeSprite;
         tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
 
         if (!justAte)
@@ -253,6 +262,31 @@ public class Game : MonoBehaviour
         {
             GameOver();
         }
+    }
+
+    Vector3 GetScreenWrapPosition(Vector3 position)
+    {
+        if (position.x > width/2)
+        {
+            return new Vector3(-width/2, position.y, 0);
+        }
+
+        if (position.x < -width/2)
+        {
+            return new Vector3(width/2, position.y, 0);
+        }
+        
+        if (position.y > height/2)
+        {
+            return new Vector3(position.x, -height / 2, 0);
+        }
+
+        if (position.y < -height/2)
+        {
+            return new Vector3(position.x, height / 2, 0);
+        }
+        
+        return position;
     }
 
     void CheckCrashWithWall(Vector3 position)
@@ -343,7 +377,7 @@ public class Game : MonoBehaviour
             }
         }
         apples.Add(position);
-        tiles[position].GetComponent<SpriteRenderer>().sprite = circleSprite;
+        tiles[position].GetComponent<SpriteRenderer>().sprite = appleSprite;
         tiles[position].GetComponent<SpriteRenderer>().enabled = true;
     }
 
