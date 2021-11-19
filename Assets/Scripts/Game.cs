@@ -1,7 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using TMPro;
 using UnityEngine;
 using Button = UnityEngine.UI.Button;
@@ -169,7 +167,6 @@ public class Game : MonoBehaviour
             tile.Value.transform.localScale = new Vector3(0.9f, 0.9f, 0f);
             tile.Value.GetComponent<SpriteRenderer>().enabled = false;
         }
-        
         Start();
     }
 
@@ -249,9 +246,9 @@ public class Game : MonoBehaviour
 
     void CheckIfOutOfBounds(Vector3 position)
     {
-        if (position.x > width / 2 -1 || 
+        if (position.x > width / 2 || 
             position.x < -width / 2 || 
-            position.y > height / 2 -1 ||
+            position.y > height / 2 ||
             position.y < -height / 2)
         {
             GameOver();
