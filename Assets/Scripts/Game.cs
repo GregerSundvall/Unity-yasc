@@ -12,9 +12,9 @@ public class Game : MonoBehaviour
 
     private int width = 31;
     private int height = 31;
-    private float startMoveDelay = 0.4f;
+    private float startMoveDelay = 0.35f;
     private float currentMoveDelay;
-    private float moveDelayMultiplier = 0.999f;
+    private float moveDelayMultiplier = 0.998f;
     private float minMoveDelay = 0.1f;
     private float appleDelay = 2f;
     private Vector3 startPos = Vector3.zero;
@@ -52,20 +52,18 @@ public class Game : MonoBehaviour
     {
         board = Instantiate(boardPrefab);
         board.transform.localScale = new Vector3(width, height, 0);
-        board.transform.position = new Vector3(-0.5f, -0.5f, 0);
+        board.transform.position = new Vector3(0, 0, 0);
         
         snake = new LinkedList<Vector3>();
         tiles = new Dictionary<Vector3, GameObject>();
         apples = new List<Vector3>();
-        walls = new List<Vector3>();
+        walls = new List<Vector3>(); 
         
         CreateTiles();
-        GetHighScore();
+        LoadHighScoreFromPlayerPrefs();
         highScoreBox.text = highScore.ToString();
     }
-
-
-
+    
     void Start()
     {
         currentDirection = north;
@@ -74,9 +72,33 @@ public class Game : MonoBehaviour
         gameOver = false;
         justAte = false;
 
-        GetLevel();
+        LoadLevelFromResources();
         CreateWalls();
+        CreateSnake();
+        InactivateGameOverUIObjects();
+        
+        StartCoroutine(Mover());
+        StartCoroutine(AppleSpawner());
+    }
 
+
+    void Update()
+    {
+        GetDirectionInput();
+    }
+    
+    void InactivateGameOverUIObjects()
+    {
+        playAgainButton.gameObject.SetActive(false);
+        foreach (var item in gameOverUIText)
+        {
+            item.gameObject.SetActive(false);
+        }
+    }
+
+    
+    void CreateSnake()
+    {
         snake.AddNewHead(startPos);
         tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
         for (int i = 1; i < startSize; i++)
@@ -84,20 +106,6 @@ public class Game : MonoBehaviour
             snake.AddToEnd(startPos + south * i);
             tiles[snake.Tail()].GetComponent<SpriteRenderer>().enabled = true;
         }
-        
-        playAgainButton.gameObject.SetActive(false);
-        foreach (var item in gameOverUIText)
-        {
-            item.gameObject.SetActive(false);
-        }
-        StartCoroutine(Mover());
-        StartCoroutine(AppleSpawner());
-    }
-
-    
-    void Update()
-    {
-        GetDirection();
     }
 
     void CreateTiles()
@@ -165,28 +173,16 @@ public class Game : MonoBehaviour
         Start();
     }
 
-    void GetLevel()
+    void LoadLevelFromResources()
     {
         var path = "level1";
         TextAsset textAsset = Resources.Load<TextAsset>(path);
-        Debug.Log(textAsset.text.Length);
-        
         level = (Level)JsonUtility.FromJson(textAsset.text, typeof(Level));
-        Debug.Log(level.map[0]);
     }
     
-    [Serializable]
-    public class Level
-    {
-        public List<int> map;
 
-        public static Level CreateFromJson(string json)
-        {
-            return JsonUtility.FromJson<Level>(json);
-        }
-    }
 
-    void GetHighScore()
+    void LoadHighScoreFromPlayerPrefs()
     {
         if (PlayerPrefs.HasKey("HighScore"))
         {
@@ -194,7 +190,7 @@ public class Game : MonoBehaviour
         }
     }
     
-    void SaveHighScore()
+    void SaveHighScoreToPlayerPrefs()
     {
         if (score > highScore)
         {
@@ -203,7 +199,7 @@ public class Game : MonoBehaviour
         }
     }
 
-    void GetDirection()
+    void GetDirectionInput()
     {
         if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
         {
@@ -225,14 +221,14 @@ public class Game : MonoBehaviour
 
     void Move()
     {
-        var goingToPosition = snake.Head() + currentDirection;
-        CheckCrashWithSelf(goingToPosition);
-        CheckOutOfBounds(goingToPosition);
-        CheckCrashWithWall(goingToPosition);
-        CheckForApple(goingToPosition);
+        var nextPosition = snake.Head() + currentDirection;
+        CheckCrashWithSelf(nextPosition);
+        CheckIfOutOfBounds(nextPosition);
+        CheckCrashWithWall(nextPosition);
+        CheckForApple(nextPosition);
         if (gameOver) {return;}
         
-        snake.AddNewHead(goingToPosition);
+        snake.AddNewHead(nextPosition);
         
         tiles[snake.Head()].GetComponent<SpriteRenderer>().sprite = squareSprite;
         tiles[snake.Head()].GetComponent<SpriteRenderer>().enabled = true;
@@ -251,7 +247,7 @@ public class Game : MonoBehaviour
         }
     }
 
-    void CheckOutOfBounds(Vector3 position)
+    void CheckIfOutOfBounds(Vector3 position)
     {
         if (position.x > width / 2 -1 || 
             position.x < -width / 2 || 
@@ -310,7 +306,7 @@ public class Game : MonoBehaviour
         if (score > highScore)
         {
             highScore = score;
-            SaveHighScore();
+            SaveHighScoreToPlayerPrefs();
             highScoreBox.text = highScore.ToString();
         }
     }
